@@ -26,3 +26,24 @@
 *.exe
 *.out
 *.app
+
+#Visual Studio files
+Client/*.sln
+Client/*.opensdf
+Client/*.sdf
+Client/*.suo
+
+#debug
+Client/Debug/
+Client/Client/Debug/
+Client/CommonLib/Debug
+Client/x64/
+Client/Client/x64/
+Client/CommonLib/x64/
+Client/ipch/
+Client/Client/*.vcxproj.filters
+Client/Client/*.vcxproj.user
+Client/Client/*.vcxproj
+Client/CommonLib/*.vcxproj
+Client/CommonLib/*.vcxproj.filters
+Client/CommonLib/*.vcxproj.user
