@@ -62,4 +62,4 @@ char* PrepareMessage(T_Header header, FunctionCode functionCode, short startingA
 SOCKET ConnectToRTU(unsigned short port, char *ipAddress);
 short getAvailableTransactionID();
 CRITICAL_SECTION getCriticalSection();
-CRITICAL_SECTION InitializeTCPDriver();
+CRITICAL_SECTION *InitializeTCPDriver();

@@ -6,11 +6,14 @@
 
 CRITICAL_SECTION cs;
 CRITICAL_SECTION csForHandleMap;
+CRITICAL_SECTION csForCommandVector;
+
 typedef struct StructForHandleMap
 {
 	HANDLE handle;
 	char *response;
 } T_StructForHandleMap;
+
 std::map<short, T_StructForHandleMap> handleMap = std::map<short, T_StructForHandleMap>();
 
 
@@ -34,19 +37,22 @@ DWORD WINAPI SendDataToModSim(LPVOID lParam)
 	{
 		if(!dataForModBusHandle->vectorOfCommandMessages.empty())
 		{
-			EnterCriticalSection(&cs);
+			EnterCriticalSection(&csForCommandVector);
 			T_Message messageFromCommandVector = dataForModBusHandle->vectorOfCommandMessages[0];
 			dataForModBusHandle->vectorOfCommandMessages.erase(dataForModBusHandle->vectorOfCommandMessages.begin());
-			LeaveCriticalSection(&cs);
+			LeaveCriticalSection(&csForCommandVector);
 			char functionCode = messageFromCommandVector.data[0];
 			short startingAddress = *(short*)(messageFromCommandVector.data + 1);
+			T_StructForHandleMap helper = {messageFromCommandVector.handle, messageFromCommandVector.response};
+			EnterCriticalSection(&csForHandleMap);
+			handleMap[messageFromCommandVector.header.transactionIdentifier] = helper;
+			LeaveCriticalSection(&csForHandleMap);
 			switch(functionCode)
 			{
 				case 5:
 					{
 						short valueToWrite = *(short*)(messageFromCommandVector.data + 3);
 						WriteSingleCoil(messageFromCommandVector.header, FunctionCode::WRITE_SINGLE_COIL, startingAddress, valueToWrite, dataForModBusHandle->connectSocket);
-						//T_Message *data = ReceiveResponse(dataForModBusHandle->connectSocket);
 						break;
 					}
 
@@ -96,7 +102,7 @@ DWORD WINAPI SendDataToModSim(LPVOID lParam)
 					{
 						short numberOfInputRegisters = *(short*)(messageFromPollVector.data + 3);
 						sentBytes = ReadRegisters(messageFromPollVector.header, FunctionCode::READ_INPUT_REGISTERS, startingAddress, numberOfInputRegisters, dataForModBusHandle->connectSocket);
-						printf("Bytes sent (read input registers): %d\n", sentBytes);
+						//printf("Bytes sent (read input registers): %d\n", sentBytes);
 						break;
 					}
 			}
@@ -114,6 +120,7 @@ DWORD WINAPI ReceiveDataFromModSim(LPVOID lParam)
 		if(handleMap.size() > 0)
 		{
 			T_Message *response = ReceiveResponse(connSock);
+			//Sleep(20000);
 			EnterCriticalSection(&csForHandleMap);
 			HANDLE h = handleMap[response->header.transactionIdentifier].handle;
 			LeaveCriticalSection(&csForHandleMap);
@@ -281,19 +288,31 @@ SOCKET ConnectToRTU(unsigned short port, char *ipAddress)
 
 short getAvailableTransactionID()
 {
+	EnterCriticalSection(&csForHandleMap);
 	for (int i = 1; i < handleMap.size() + 1; i++)
 	{
 		if (handleMap.count(i) == 0)
 		{
+			handleMap[i] = *(new T_StructForHandleMap());
 			return i;
 		}
 	}
-	return handleMap.size() + 1;
+	short size = handleMap.size() + 1;
+	handleMap[size] = *(new T_StructForHandleMap());
+	LeaveCriticalSection(&csForHandleMap);
+	return size;
 }
 
-CRITICAL_SECTION InitializeTCPDriver()
+CRITICAL_SECTION* InitializeTCPDriver()
 {
+	InitializeCriticalSection(&csForCommandVector);
 	InitializeCriticalSection(&cs);
-	return cs;
+
+	CRITICAL_SECTION *retVal = (CRITICAL_SECTION*)malloc(sizeof(CRITICAL_SECTION) * 2);
+	
+	retVal[0] = cs;
+	retVal[1] = csForCommandVector;
+	
+	return retVal;
 }
 

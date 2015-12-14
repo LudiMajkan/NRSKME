@@ -39,7 +39,7 @@ typedef struct DigitalDevice {
 	short outAddress[2];				//bio char
 	bool state[2];						//Pitaj sledeci put
 	char* status;						//Pitaj sledeci put
-	bool command[2];						//Pitaj
+	bool command[2];					//Pitaj
 };
 
 typedef struct RTU {

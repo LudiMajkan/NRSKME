@@ -48,7 +48,7 @@ DWORD WINAPI SendRequest(LPVOID lParam)
 		for (int i = 0; i < (*rtuVector)[0].analogInputs.size(); i++)
 		{
 			short value = ntohs(*(short*)(myData->message.response + 9 + i * 2));
-			printf("Value: %d\n", value);
+			//printf("Value: %d\n", value);
 			int bla = rtuVector->at(0).analogInputs[i].Raw;
 			rtuVector->at(0).analogInputs[i].Raw = value;
 			CalculateEGU(&rtuVector->at(0).analogInputs[i]);

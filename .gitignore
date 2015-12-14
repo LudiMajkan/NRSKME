@@ -28,22 +28,15 @@
 *.app
 
 #Visual Studio files
-Client/*.sln
-Client/*.opensdf
-Client/*.sdf
-Client/*.suo
+*.sln
+*.opensdf
+*.sdf
+*.suo
 
 #debug
-Client/Debug/
-Client/Client/Debug/
-Client/CommonLib/Debug
-Client/x64/
-Client/Client/x64/
-Client/CommonLib/x64/
+*Debug/
+*x64/
 Client/ipch/
-Client/Client/*.vcxproj.filters
-Client/Client/*.vcxproj.user
-Client/Client/*.vcxproj
-Client/CommonLib/*.vcxproj
-Client/CommonLib/*.vcxproj.filters
-Client/CommonLib/*.vcxproj.user
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
