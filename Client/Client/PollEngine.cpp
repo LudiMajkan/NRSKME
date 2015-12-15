@@ -1,6 +1,6 @@
+#include <time.h>
 #include "PollEngine.h"
 #include "DataBase.h"
-
 
 typedef struct DataForSendRequest
 {
@@ -50,6 +50,7 @@ DWORD WINAPI SendRequest(LPVOID lParam)
 			short value = ntohs(*(short*)(myData->message.response + 9 + i * 2));
 			//printf("Value: %d\n", value);
 			int bla = rtuVector->at(0).analogInputs[i].Raw;
+			rtuVector->at(0).analogInputs[i].timeStamp = time(0);
 			rtuVector->at(0).analogInputs[i].Raw = value;
 			CalculateEGU(&rtuVector->at(0).analogInputs[i]);
 		}

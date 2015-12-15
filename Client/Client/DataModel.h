@@ -14,6 +14,9 @@ typedef struct AnalogInput {
 	int value;
 	char* status;
 	time_t timeStamp;			//timestamp
+	time_t lastDataChanged;
+	bool inAlarm;
+
 };
 
 typedef struct AnalogOutput {
@@ -27,7 +30,7 @@ typedef struct AnalogOutput {
 	int Raw;
 	int value;
 	char* status;
-	time_t timeStam;				//timestamp
+	time_t timeStamp;				//timestamp
 	int EGUSetpoint;
 	time_t setpointTimeout;			//setpointtimeout
 };
@@ -40,6 +43,7 @@ typedef struct DigitalDevice {
 	bool state[2];						//Pitaj sledeci put
 	char* status;						//Pitaj sledeci put
 	bool command[2];					//Pitaj
+	time_t lastDataChanged;
 };
 
 typedef struct RTU {

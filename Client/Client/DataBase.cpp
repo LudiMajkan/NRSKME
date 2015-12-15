@@ -132,7 +132,7 @@ std::vector<RTU> InitializeRTUs()
 				strcpy(ao->status, line);
 				fgets(line, sizeof(line), file);
 				line[strlen(line) - 1] = '\0';
-				ao->timeStam = atoi(line);
+				ao->timeStamp = atoi(line);
 				fgets(line, sizeof(line), file);
 				line[strlen(line) - 1] = '\0';
 				ao->EGUSetpoint = atoi(line);
