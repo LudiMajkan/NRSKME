@@ -1,6 +1,7 @@
 #include <time.h>
 #include "PollEngine.h"
 #include "DataBase.h"
+#include "CommandEngine.h"
 
 typedef struct DataForSendRequest
 {
@@ -11,6 +12,8 @@ typedef struct DataForSendRequest
 }T_DataForSendRequest;
 
 std::vector<RTU> *rtuVector;
+std::vector<T_Message> *commandMessages;
+CRITICAL_SECTION *csForCommandVector1;
 
 void PollDataFromRTU(std::vector<T_Message> *pollMessages, short protID, short len, char unitID, char funCode, short addr, short quantity, CRITICAL_SECTION cs)
 {
@@ -52,7 +55,12 @@ DWORD WINAPI SendRequest(LPVOID lParam)
 			int bla = rtuVector->at(0).analogInputs[i].Raw;
 			rtuVector->at(0).analogInputs[i].timeStamp = time(0);
 			rtuVector->at(0).analogInputs[i].Raw = value;
-			CalculateEGU(&rtuVector->at(0).analogInputs[i]);
+			//CalculateEGU(&rtuVector->at(0).analogInputs[i]);
+			if(rtuVector->at(0).analogOutputs[i].setpointTimeout > 0)
+			{
+				rtuVector->at(0).analogOutputs[i].setpointTimeout -= 2;
+			}
+			AnalizeSetpointTimeout(i, &(rtuVector->at(0)));
 		}
 	}
 	else if (*(char*)(myData->message.response + 7) == 0x02)
@@ -60,6 +68,7 @@ DWORD WINAPI SendRequest(LPVOID lParam)
 		char mask = 1;
 		char responseCh = *(char*)(myData->message.response + 9);
 		short numOfBytes = *(char*)(myData->message.response + 8);
+		bool oldState[2] = {0, 0};
 		for (int i = 1; i < numOfBytes + 1; i++)
 		{
 			for (int j = 0; j < 4; j++)
@@ -68,6 +77,10 @@ DWORD WINAPI SendRequest(LPVOID lParam)
 				{
 					if (j + (i - 1) * 4 < rtuVector->at(0).digitalDevices.size())
 					{
+						if(strcmp(rtuVector->at(0).digitalDevices[j + (i - 1) * 4].name, "mikrotalasna") == 0)
+						{
+							oldState[k] = rtuVector->at(0).digitalDevices[j + (i - 1) * 4].state[k];
+						}
 						rtuVector->at(0).digitalDevices[j + (i - 1) * 4].state[k] = responseCh & mask;
 						mask = mask << 1;
 					}
@@ -77,6 +90,26 @@ DWORD WINAPI SendRequest(LPVOID lParam)
 						j = 4;
 						break;
 					}
+				}
+				if(i < numOfBytes + 1)
+				{
+					if(strcmp(rtuVector->at(0).digitalDevices[j + (i - 1) * 4].name, "mikrotalasna") == 0)
+					{
+						if(rtuVector->at(0).digitalDevices[j + (i - 1) * 4].state[0] != rtuVector->at(0).digitalDevices[j + (i - 1) * 4].command[0]
+								|| rtuVector->at(0).digitalDevices[j + (i - 1) * 4].state[1] != rtuVector->at(0).digitalDevices[j + (i - 1) * 4].command[1])
+						{
+							rtuVector->at(0).digitalDevices[j + (i - 1) * 4].commandTimeout = 16;
+							rtuVector->at(0).analogOutputs[j + (i - 1) * 4].setpointTimeout = 16;
+							SendCommandToSimulator(commandMessages, 0, 6, 1, 0x05, 2009, rtuVector->at(0).digitalDevices[j + (i - 1) * 4].state[0], *csForCommandVector1, rtuVector);
+							SendCommandToSimulator(commandMessages, 0, 6, 1, 0x05, 2010, rtuVector->at(0).digitalDevices[j + (i - 1) * 4].state[1], *csForCommandVector1, rtuVector);
+							SendCommandToSimulator(commandMessages, 0, 6, 1, 0x06, 4005, rtuVector->at(0).analogInputs[j + (i - 1) * 4].value, *csForCommandVector1, rtuVector);
+						}
+					}
+					if(rtuVector->at(0).digitalDevices[j + (i - 1) * 4].commandTimeout > 0)
+					{
+						rtuVector->at(0).digitalDevices[j + (i - 1) * 4].commandTimeout -= 2;
+					}
+					AnalizeCommandTimeout(j + (i - 1) * 4, &(rtuVector->at(0)));
 				}
 			}
 			if (i < numOfBytes + 1)
@@ -94,6 +127,8 @@ DWORD WINAPI SendRequest(LPVOID lParam)
 DWORD WINAPI PollAllData(LPVOID lParam)
 {
 	T_DataForPolling *myData = (T_DataForPolling*)lParam;
+	csForCommandVector1 = myData->csForCommandVector;
+	commandMessages = myData->commandMessages;
 	rtuVector = myData->rtus;
 	while(true)
 	{

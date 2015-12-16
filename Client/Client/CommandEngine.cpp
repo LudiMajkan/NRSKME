@@ -17,12 +17,13 @@ void WriteCommandToDatabase(std::vector<RTU> *database, short command, short inA
 	{
 		if (database->at(0).digitalDevices[i].outAddress[0] == inAddress)
 		{
-
 			database->at(0).digitalDevices[i].command[0] = command;
+			database->at(0).digitalDevices[i].commandTimeout = 10;
 		}
 		else if (database->at(0).digitalDevices[i].outAddress[1] == inAddress)
 		{
 			database->at(0).digitalDevices[i].command[1] = command;
+			database->at(0).digitalDevices[i].commandTimeout = 10;
 		}
 	}
 }
@@ -34,6 +35,20 @@ void WriteSetpointToDatabase(std::vector<RTU> *database, short value, short addr
 		if (database->at(0).analogOutputs[i].address == address)
 		{
 			database->at(0).analogOutputs[i].EGUSetpoint = value;
+			database->at(0).analogOutputs[i].setpointTimeout = 10;
+		}
+	}
+}
+
+short ConvertToRaw(std::vector<RTU> *database, short address, short value)
+{
+	for (int i = 0; i < database->at(0).analogOutputNum; i++)
+	{
+		if (database->at(0).analogOutputs[i].address == address)
+		{
+			return (((float)database->at(0).analogOutputs[i].RawMax - (float)database->at(0).analogOutputs[i].RawMin) 
+				  / ((float)database->at(0).analogOutputs[i].EGUMax - (float)database->at(0).analogOutputs[i].EGUMin))*((float)value
+				  - (float)database->at(0).analogOutputs[i].RawMin) + (float)database->at(0).analogOutputs[i].EGUMin + 0.5;
 		}
 	}
 }
@@ -49,6 +64,10 @@ DWORD WINAPI SendCommand(LPVOID lParam)
 	char funCode = data->message.data[0];
 	short inAddress = *(short*)(data->message.data + 1);
 	short value = *(short*)(data->message.data + 3);
+	if(funCode == 0x06)
+	{
+		*(short*)(data->message.data + 3) = ConvertToRaw(data->rtdb, inAddress, value);
+	}
 	EnterCriticalSection(&(data->csForCommandVector));
 	data->vectorOfMessages->push_back(data->message);
 	LeaveCriticalSection(&(data->csForCommandVector));

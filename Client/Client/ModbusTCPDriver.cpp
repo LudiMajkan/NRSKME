@@ -7,7 +7,7 @@
 CRITICAL_SECTION cs;
 CRITICAL_SECTION csForHandleMap;
 CRITICAL_SECTION csForCommandVector;
-
+unsigned short transId = 0;
 typedef struct StructForHandleMap
 {
 	HANDLE handle;
@@ -31,7 +31,6 @@ bool InitializeWindowsSockets()
 
 DWORD WINAPI SendDataToModSim(LPVOID lParam)
 {
-	InitializeCriticalSection(&csForHandleMap);
 	T_DataForModBusHandle *dataForModBusHandle = (T_DataForModBusHandle*)lParam;
 	while (true)
 	{
@@ -44,9 +43,11 @@ DWORD WINAPI SendDataToModSim(LPVOID lParam)
 			char functionCode = messageFromCommandVector.data[0];
 			short startingAddress = *(short*)(messageFromCommandVector.data + 1);
 			T_StructForHandleMap helper = {messageFromCommandVector.handle, messageFromCommandVector.response};
-			EnterCriticalSection(&csForHandleMap);
-			handleMap[messageFromCommandVector.header.transactionIdentifier] = helper;
-			LeaveCriticalSection(&csForHandleMap);
+			if (messageFromCommandVector.response == 0)
+			{
+				printf("");
+			}
+			handleMap.insert(std::map<short, T_StructForHandleMap>::value_type(messageFromCommandVector.header.transactionIdentifier, helper));
 			switch(functionCode)
 			{
 				case 5:
@@ -73,9 +74,7 @@ DWORD WINAPI SendDataToModSim(LPVOID lParam)
 			char functionCode = messageFromPollVector.data[0];
 			short startingAddress = *(short*)(messageFromPollVector.data + 1);
 			T_StructForHandleMap helper = {messageFromPollVector.handle, messageFromPollVector.response};
-			EnterCriticalSection(&csForHandleMap);
-			handleMap[messageFromPollVector.header.transactionIdentifier] = helper;
-			LeaveCriticalSection(&csForHandleMap);
+			handleMap.insert(std::map<short, T_StructForHandleMap>::value_type(messageFromPollVector.header.transactionIdentifier, helper));
 			char* messageToSend;
 			int sentBytes = 0;
 			switch(functionCode)
@@ -120,27 +119,22 @@ DWORD WINAPI ReceiveDataFromModSim(LPVOID lParam)
 		if(handleMap.size() > 0)
 		{
 			T_Message *response = ReceiveResponse(connSock);
-			//Sleep(20000);
-			EnterCriticalSection(&csForHandleMap);
-			HANDLE h = handleMap[response->header.transactionIdentifier].handle;
-			LeaveCriticalSection(&csForHandleMap);
+			HANDLE h = handleMap.at(response->header.transactionIdentifier).handle;
 			char *chResp = (char*)malloc(sizeof(char)*(6 + response->header.length));
-			EnterCriticalSection(&csForHandleMap);
-			realloc(handleMap[response->header.transactionIdentifier].response, sizeof(char)*(6 + response->header.length));
-			LeaveCriticalSection(&csForHandleMap);
+			realloc(handleMap.at(response->header.transactionIdentifier).response, sizeof(char)*(6 + response->header.length));
+			if (handleMap.at(response->header.transactionIdentifier).response == NULL)
+			{
+				printf("");
+			}
 			*(short*)(chResp + 4) = response->header.length;
 			*(short*)(chResp) = response->header.transactionIdentifier;
 			*(short*)(chResp + 2) = response->header.protocolIdentifier;
 			chResp[6] = response->header.unitIdentifier;
 			memcpy(chResp + 7, response->data, response->header.length - 1);
-			EnterCriticalSection(&csForHandleMap);
-			memcpy(handleMap[response->header.transactionIdentifier].response, chResp, response->header.length + 6);
-			LeaveCriticalSection(&csForHandleMap);
+			memcpy(handleMap.at(response->header.transactionIdentifier).response, chResp, response->header.length + 6);
 			ReleaseSemaphore(h, 1, NULL);
 			WaitForSingleObject(h, INFINITE);
-			EnterCriticalSection(&csForHandleMap);
 			handleMap.erase(response->header.transactionIdentifier);
-			LeaveCriticalSection(&csForHandleMap);
 		}
 	}
 	return 0;
@@ -289,7 +283,7 @@ SOCKET ConnectToRTU(unsigned short port, char *ipAddress)
 short getAvailableTransactionID()
 {
 	EnterCriticalSection(&csForHandleMap);
-	for (int i = 1; i < handleMap.size() + 1; i++)
+	/*for (int i = 1; i < handleMap.size() + 1; i++)
 	{
 		if (handleMap.count(i) == 0)
 		{
@@ -298,15 +292,17 @@ short getAvailableTransactionID()
 		}
 	}
 	short size = handleMap.size() + 1;
-	handleMap[size] = *(new T_StructForHandleMap());
+	handleMap[size] = *(new T_StructForHandleMap());*/
+	transId++;
 	LeaveCriticalSection(&csForHandleMap);
-	return size;
+	return transId;
 }
 
 CRITICAL_SECTION* InitializeTCPDriver()
 {
 	InitializeCriticalSection(&csForCommandVector);
 	InitializeCriticalSection(&cs);
+	InitializeCriticalSection(&csForHandleMap);
 
 	CRITICAL_SECTION *retVal = (CRITICAL_SECTION*)malloc(sizeof(CRITICAL_SECTION) * 2);
 	

@@ -87,6 +87,7 @@ std::vector<RTU> InitializeRTUs()
 				fgets(line, sizeof(line), file);
 				line[strlen(line) - 1] = '\0';
 				ai->timeStamp = atoi(line);
+				ai->inAlarm = false;
 				rtu->analogInputs.push_back(*ai);
 				rtu->analogInputNum++;
 			}
@@ -184,6 +185,8 @@ std::vector<RTU> InitializeRTUs()
 				fgets(line, sizeof(line), file);
 				line[strlen(line) - 1] = '\0';
 				di->command[1] = atoi(line);
+				di->inAlarm = false;
+				di->commandTimeout = 60;
 				rtu->digitalDevices.push_back(*di);
 				rtu->digitalDevicesNum++;
 			}

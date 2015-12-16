@@ -6,6 +6,7 @@
 
 HANDLE semaphoreForClient;
 bool shutdownApp = false;
+bool alarmConfirmed = true;
 
 typedef struct StructForCommandClient
 {
@@ -14,7 +15,7 @@ typedef struct StructForCommandClient
 	CRITICAL_SECTION csForCommandVector;
 } T_StructForCommandClient;
 
-DWORD WINAPI SoundAlarm(LPVOID lParam)
+DWORD WINAPI SoundAlarmAnalog(LPVOID lParam)
 {
 	AnalogInput *ai = (AnalogInput*)lParam;
 	while (!shutdownApp)
@@ -23,12 +24,51 @@ DWORD WINAPI SoundAlarm(LPVOID lParam)
 		{
 			WaitForSingleObject(semaphoreForClient, INFINITE);
 			system("COLOR 4F");
-			printf("\nALARM, CONFIRM!!!!!!");
+			printf("\n");
+			printf("================================================================================================================\n");
+			printf("|                                             ALARM, CONFIRM!!!!!!                                             |\n");
+			printf("================================================================================================================\n");
+			printf(">");
+			alarmConfirmed = false;
 			getchar();
+			alarmConfirmed = true;
 			ReleaseSemaphore(semaphoreForClient, 1, NULL);
 			while (ai->inAlarm)
 			{
 				printf("Alarm, analogInput name: %s\n", ai->name);
+				system("COLOR 4F");
+				Sleep(2000);
+			}
+			system("COLOR 0F");
+		}
+		Sleep(1000);
+	}
+	
+	return 0;
+}
+
+DWORD WINAPI SoundAlarmDigital(LPVOID lParam)
+{
+	DigitalDevice *dd = (DigitalDevice*)lParam;
+	while (!shutdownApp)
+	{
+		if (dd->inAlarm)
+		{
+			WaitForSingleObject(semaphoreForClient, INFINITE);
+			system("COLOR 4F");
+			printf("\n");
+			printf("================================================================================================================\n");
+			printf("|                                             ALARM, CONFIRM!!!!!!                                             |\n");
+			printf("================================================================================================================\n");
+			printf(">");
+			alarmConfirmed = false;
+			getchar();
+			alarmConfirmed = true;
+			ReleaseSemaphore(semaphoreForClient, 1, NULL);
+			while (dd->inAlarm)
+			{
+				printf("Alarm, analogInput name: %s\n", dd->name);
+				system("COLOR 4F");
 				Sleep(2000);
 			}
 			system("COLOR 0F");
@@ -45,7 +85,11 @@ DWORD WINAPI CommandFromClient(LPVOID lParam)
 	int value = 0;
 	while(true)
 	{
-		char c = getchar();
+		char c = '0';
+		if(alarmConfirmed)
+		{
+			c = getchar();
+		}
 		if(c == '1')
 		{
 			WaitForSingleObject(semaphoreForClient, INFINITE);
@@ -370,9 +414,6 @@ DWORD WINAPI RefreshConsole(LPVOID lParam)
 
 int _tmain(int argc, char* argv[])
 {
-
-	//AllocConsole();
-
 	std::vector<RTU> rtus(InitializeRTUs());
 	CRITICAL_SECTION *cs = InitializeTCPDriver();
 	int value = rtus[0].analogInputs[0].Raw;
@@ -405,28 +446,37 @@ int _tmain(int argc, char* argv[])
 
 	T_DataForPolling *dfp = new T_DataForPolling();
 	dfp->cs = cs[0];
+	dfp->csForCommandVector = cs + 1;
+	dfp->commandMessages = &tstruct.vectorOfCommandMessages;
 	dfp->pollMessages = &tstruct.vectorOfPollMessages;
 	dfp->rtus = &rtus;
 
-	//tstruct->vectorOfMessages()
-	//EnterCriticalSection(&cs);
-	//tstruct.vectorOfPollMessages.push_back(*message);
-	//LeaveCriticalSection(&cs);
 	HANDLE hReceiveData = CreateThread(NULL, 0, &ReceiveDataFromModSim, &connectSocket, 0, &itReceiveDataFromModSim);
 	HANDLE hSendDataToModSim = CreateThread(NULL, 0, &SendDataToModSim, &tstruct, 0, &itSendDataToModSim);
-	Sleep(1);
+	//Sleep(1);
 	semaphoreForClient = CreateSemaphore(0, 1, 1, NULL);
 	DWORD itSoundAlarm1;
 	DWORD itSoundAlarm2;
 	DWORD itSoundAlarm3;
 	DWORD itSoundAlarm4;
 	DWORD itSoundAlarm5;
+	DWORD itSoundAlarmDig1;
+	DWORD itSoundAlarmDig2;
+	DWORD itSoundAlarmDig3;
+	DWORD itSoundAlarmDig4;
+	DWORD itSoundAlarmDig5;
 
-	HANDLE alarmSounderAnaIn1 = CreateThread(NULL,0, &SoundAlarm, &rtus[0].analogInputs[0], 0, &itSoundAlarm1);
-	HANDLE alarmSounderAnaIn2 = CreateThread(NULL, 0, &SoundAlarm, &rtus[0].analogInputs[1], 0, &itSoundAlarm2);
-	HANDLE alarmSounderAnaIn3 = CreateThread(NULL, 0, &SoundAlarm, &rtus[0].analogInputs[2], 0, &itSoundAlarm3);
-	HANDLE alarmSounderAnaIn4 = CreateThread(NULL, 0, &SoundAlarm, &rtus[0].analogInputs[3], 0, &itSoundAlarm4);
-	HANDLE alarmSounderAnaIn5 = CreateThread(NULL, 0, &SoundAlarm, &rtus[0].analogInputs[4], 0, &itSoundAlarm5);
+	HANDLE alarmSounderAnaIn1 = CreateThread(NULL,0, &SoundAlarmAnalog, &rtus[0].analogInputs[0], 0, &itSoundAlarm1);
+	HANDLE alarmSounderAnaIn2 = CreateThread(NULL, 0, &SoundAlarmAnalog, &rtus[0].analogInputs[1], 0, &itSoundAlarm2);
+	HANDLE alarmSounderAnaIn3 = CreateThread(NULL, 0, &SoundAlarmAnalog, &rtus[0].analogInputs[2], 0, &itSoundAlarm3);
+	HANDLE alarmSounderAnaIn4 = CreateThread(NULL, 0, &SoundAlarmAnalog, &rtus[0].analogInputs[3], 0, &itSoundAlarm4);
+	HANDLE alarmSounderAnaIn5 = CreateThread(NULL, 0, &SoundAlarmAnalog, &rtus[0].analogInputs[4], 0, &itSoundAlarm5);
+
+	HANDLE alarmSounderDigIn1 = CreateThread(NULL,0, &SoundAlarmDigital, &rtus[0].digitalDevices[0], 0, &itSoundAlarmDig1);
+	HANDLE alarmSounderDigIn2 = CreateThread(NULL,0, &SoundAlarmDigital, &rtus[0].digitalDevices[1], 0, &itSoundAlarmDig2);
+	HANDLE alarmSounderDigIn3 = CreateThread(NULL,0, &SoundAlarmDigital, &rtus[0].digitalDevices[2], 0, &itSoundAlarmDig3);
+	HANDLE alarmSounderDigIn4 = CreateThread(NULL,0, &SoundAlarmDigital, &rtus[0].digitalDevices[3], 0, &itSoundAlarmDig4);
+	HANDLE alarmSounderDigIn5 = CreateThread(NULL,0, &SoundAlarmDigital, &rtus[0].digitalDevices[4], 0, &itSoundAlarmDig5);
 
 	HANDLE hPollAllData = CreateThread(NULL, 0, &PollAllData, dfp, 0, &itPollAllData);
 	
@@ -442,7 +492,6 @@ int _tmain(int argc, char* argv[])
 		}
 	}
 	Sleep(1000);
-	//getchar();
 	closesocket(connectSocket);
 	WSACleanup();
 	return true;

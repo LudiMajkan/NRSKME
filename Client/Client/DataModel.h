@@ -13,7 +13,7 @@ typedef struct AnalogInput {
 	int Raw;
 	int value;
 	char* status;
-	time_t timeStamp;			//timestamp
+	time_t timeStamp;
 	time_t lastDataChanged;
 	bool inAlarm;
 
@@ -30,20 +30,21 @@ typedef struct AnalogOutput {
 	int Raw;
 	int value;
 	char* status;
-	time_t timeStamp;				//timestamp
+	time_t timeStamp;
 	int EGUSetpoint;
-	time_t setpointTimeout;			//setpointtimeout
+	int setpointTimeout;
 };
 
 typedef struct DigitalDevice {
 	char* name;
 	bool readOnly;
-	short inAddress[2];					//bio char
-	short outAddress[2];				//bio char
-	bool state[2];						//Pitaj sledeci put
-	char* status;						//Pitaj sledeci put
-	bool command[2];					//Pitaj
-	time_t lastDataChanged;
+	short inAddress[2];
+	short outAddress[2];
+	bool state[2];
+	char* status;
+	bool command[2];
+	int commandTimeout;
+	bool inAlarm;
 };
 
 typedef struct RTU {
@@ -59,8 +60,4 @@ typedef struct RTU {
 	int analogOutputNum;
 	std::vector<DigitalDevice> digitalDevices;
 	int digitalDevicesNum;
-	/*std::vector<DigitalDevice> digitalInputs;
-	int digitalInputNum;
-	std::vector<DigitalDevice> digitalOutputs;
-	int digitalOutputNum;*/
 };
